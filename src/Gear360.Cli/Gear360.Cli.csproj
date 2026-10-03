@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
+    <!-- On Windows list the WPD (USB) build first so IDEs and dotnet run pick it by default. -->
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">net10.0-windows;net10.0</TargetFrameworks>
+    <AssemblyName>gear360</AssemblyName>
+    <RootNamespace>Gear360.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Gear360.Core\Gear360.Core.csproj" />
+    <ProjectReference Include="..\Gear360.Platform\Gear360.Platform.csproj" />
+  </ItemGroup>
+
+</Project>

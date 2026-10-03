@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Gear360.Cli/Gear360.Cli.csproj" />
+    <Project Path="src/Gear360.Core/Gear360.Core.csproj" />
+    <Project Path="src/Gear360.Gui/Gear360.Gui.csproj" />
+    <Project Path="src/Gear360.Mtp.LibMtp/Gear360.Mtp.LibMtp.csproj" />
+    <Project Path="src/Gear360.Mtp.Windows/Gear360.Mtp.Windows.csproj" />
+    <Project Path="src/Gear360.Platform/Gear360.Platform.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Gear360.Core.Tests/Gear360.Core.Tests.csproj" />
+    <Project Path="tests/Gear360.Gui.Tests/Gear360.Gui.Tests.csproj" />
+    <Project Path="tests/Gear360.Mtp.LibMtp.Tests/Gear360.Mtp.LibMtp.Tests.csproj" />
+    <Project Path="tests/Gear360.Mtp.Windows.Tests/Gear360.Mtp.Windows.Tests.csproj" />
+  </Folder>
+</Solution>

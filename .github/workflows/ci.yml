@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows runs every test project, including the WPD backend tests (net10.0-windows).
+          - os: windows-latest
+            tests: >-
+              tests/Gear360.Core.Tests
+              tests/Gear360.Gui.Tests
+              tests/Gear360.Mtp.LibMtp.Tests
+              tests/Gear360.Mtp.Windows.Tests
+          # macOS skips tests/Gear360.Mtp.Windows.Tests: it targets net10.0-windows and cannot run there.
+          - os: macos-latest
+            tests: >-
+              tests/Gear360.Core.Tests
+              tests/Gear360.Gui.Tests
+              tests/Gear360.Mtp.LibMtp.Tests
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: 10.0.x
+
+      # ffmpeg lets the stitching tests run instead of skipping.
+      - name: Install ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install ffmpeg --yes --no-progress
+
+      - name: Install ffmpeg and libmtp (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg libmtp
+
+      - name: Restore
+        run: dotnet restore Gear360Extractor.slnx
+
+      # The whole solution builds on both OSes (EnableWindowsTargeting lets the Windows projects build on macOS).
+      - name: Build
+        run: dotnet build Gear360Extractor.slnx --configuration Release --no-restore -warnaserror
+
+      - name: Test
+        run: |
+          for project in ${{ matrix.tests }}; do
+            echo "::group::dotnet test $project"
+            dotnet test "$project" --configuration Release --no-build --logger "console;verbosity=normal"
+            echo "::endgroup::"
+          done
+
+      # With libmtp installed and no camera attached, `gear360 list` must load libmtp, find nothing and exit with
+      # code 2 (no camera) - not crash, and not report libmtp as missing.
+      - name: Smoke test libmtp backend (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set +e
+          dotnet src/Gear360.Cli/bin/Release/net10.0/gear360.dll list 2> list-stderr.txt
+          code=$?
+          set -e
+          cat list-stderr.txt
+          echo "gear360 list exit code: $code"
+          if grep -q "libmtp was not found" list-stderr.txt; then
+            echo "::error::libmtp did not load"
+            exit 1
+          fi
+          if [ "$code" -ne 2 ]; then
+            echo "::error::expected exit code 2 (no camera), got $code"
+            exit 1
+          fi

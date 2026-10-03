@@ -1,0 +1,10 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Gear360.Gui.App"
+             Name="Gear 360 Extractor"
+             RequestedThemeVariant="Default">
+  <!-- "Default" follows the operating system's light or dark setting. -->
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+</Application>

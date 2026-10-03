@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.rid }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            tfm: net10.0-windows
+          # The macOS builds run on macOS so the SDK can ad-hoc sign the executables (required on Apple silicon).
+          - rid: osx-arm64
+            os: macos-latest
+            tfm: net10.0
+          - rid: osx-x64
+            os: macos-latest
+            tfm: net10.0
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Work out the version from the tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Publish CLI and GUI
+        run: |
+          for project in Cli Gui; do
+            dotnet publish "src/Gear360.$project/Gear360.$project.csproj" \
+              --configuration Release \
+              --framework ${{ matrix.tfm }} \
+              --runtime ${{ matrix.rid }} \
+              --self-contained true \
+              -p:PublishSingleFile=true \
+              -p:EnableCompressionInSingleFile=true \
+              -p:DebugType=none \
+              -p:Version="$VERSION" \
+              --output "publish/$project"
+          done
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path publish/Cli/gear360.exe, README.md, LICENSE `
+            -DestinationPath "dist/gear360-cli-$env:VERSION-${{ matrix.rid }}.zip"
+          Compress-Archive -Path publish/Gui/Gear360Extractor.exe, README.md, LICENSE `
+            -DestinationPath "dist/Gear360Extractor-$env:VERSION-${{ matrix.rid }}.zip"
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist staging/cli staging/gui
+
+          # ditto keeps the executable bit and the code signature intact.
+          # CLI: the single-file executable.
+          cp publish/Cli/gear360 README.md LICENSE staging/cli/
+          chmod +x staging/cli/gear360
+          ditto -c -k staging/cli "dist/gear360-cli-$VERSION-${{ matrix.rid }}.zip"
+
+          # GUI: a minimal .app bundle around the single-file executable.
+          app=staging/gui/Gear360Extractor.app
+          mkdir -p "$app/Contents/MacOS"
+          cp publish/Gui/Gear360Extractor "$app/Contents/MacOS/Gear360Extractor"
+          chmod +x "$app/Contents/MacOS/Gear360Extractor"
+          cat > "$app/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Gear360Extractor</string>
+            <key>CFBundleDisplayName</key><string>Gear 360 Extractor</string>
+            <key>CFBundleIdentifier</key><string>io.github.jadenrogers.gear360extractor</string>
+            <key>CFBundleExecutable</key><string>Gear360Extractor</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>$VERSION</string>
+            <key>CFBundleShortVersionString</key><string>$VERSION</string>
+            <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+            <key>LSMinimumSystemVersion</key><string>12.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          plutil -lint "$app/Contents/Info.plist"
+          # Ad-hoc sign the bundle so its signature covers Info.plist (not notarized; see the README).
+          codesign --force --sign - "$app"
+          codesign --verify --verbose "$app"
+          cp README.md LICENSE staging/gui/
+          ditto -c -k staging/gui "dist/Gear360Extractor-$VERSION-${{ matrix.rid }}.zip"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dist-${{ matrix.rid }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true

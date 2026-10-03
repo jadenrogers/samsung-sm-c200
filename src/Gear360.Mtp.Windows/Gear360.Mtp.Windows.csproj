@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Gear360.Mtp.Windows</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Gear360.Core\Gear360.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MIT-licensed wrapper over the Windows Portable Devices COM API (generated COM, trim/AOT safe). -->
+    <PackageReference Include="MediaDevices" Version="2.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Gear360.Mtp.Windows.Tests" />
+  </ItemGroup>
+
+</Project>

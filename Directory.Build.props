@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Lets the Windows-only backend build (but not run) on macOS and Linux. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Authors>Gear360Extractor contributors</Authors>
+    <Copyright>Copyright (c) Gear360Extractor contributors</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/jadenrogers/samsung-sm-c200</RepositoryUrl>
+  </PropertyGroup>
+</Project>
